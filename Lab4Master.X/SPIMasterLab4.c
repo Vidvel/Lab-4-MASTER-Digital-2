@@ -1,15 +1,14 @@
 /*
- * File:   SPIMasterLab4.c
+ * File:   SPIMaster.c
  * Author: David Vela
  *
- * Created on 11 de febrero de 2020, 12:54 PM
+ * Created on 12 de febrero de 2020, 07:06 PM
  */
-
-// CONFIG1
-#pragma config FOSC = INTRC_NOCLKOUT// Oscillator Selection bits (RCIO oscillator: I/O function on RA6/OSC2/CLKOUT pin, RC on RA7/OSC1/CLKIN)
+//CONFIG1
+#pragma config FOSC = INTRC_NOCLKOUT// Oscillator Selection bits (INTOSCIO oscillator: I/O function on RA6/OSC2/CLKOUT pin, I/O function on RA7/OSC1/CLKIN)
 #pragma config WDTE = OFF       // Watchdog Timer Enable bit (WDT disabled and can be enabled by SWDTEN bit of the WDTCON register)
 #pragma config PWRTE = OFF      // Power-up Timer Enable bit (PWRT disabled)
-#pragma config MCLRE = ON      // RE3/MCLR pin function select bit (RE3/MCLR pin function is digital input, MCLR internally tied to VDD)
+#pragma config MCLRE = ON       // RE3/MCLR pin function select bit (RE3/MCLR pin function is MCLR)
 #pragma config CP = OFF         // Code Protection bit (Program memory code protection is disabled)
 #pragma config CPD = OFF        // Data Code Protection bit (Data memory code protection is disabled)
 #pragma config BOREN = OFF      // Brown Out Reset Selection bits (BOR disabled)
@@ -23,45 +22,26 @@
 
 #define _XTAL_FREQ 4000000
 
+
 #include <xc.h>
-#include "usartlib.h"
 #include "SPI.h"
+#include "usartlib.h"
 
+void main(void){
+  TRISB = 0x00; //PORTB as OUt
+  PORTB = 0x00; //All LEDs OFF
+  //TRISA = 0xFF;
+  char mvar1 = 0;
+  char mvar2 = 0;
+  char select = 0;
+  char selectp1 = 0;
+  char recived = 0;
+  
+  usart_setup();
+  spiInit(SPI_MASTER_OSC_DIV4, SPI_DATA_SAMPLE_MIDDLE, SPI_CLOCK_IDLE_LOW, SPI_IDLE_2_ACTIVE);
 
-char recived;
-char c1 = 0;
-char c2 = 0;
-
-void main(void) {
-    TRISB = 0;
-    TRISDbits.TRISD7 = 0;
-    TRISDbits.TRISD4 = 1;
-    TRISDbits.TRISD5 = 1;
-    PORTDbits.RD7 = 1;
-    PORTB = 255;
-    ANSEL = 0;
-    ANSELH = 0;
-    
-    spiInit(SPI_MASTER_OSC_DIV4, SPI_DATA_SAMPLE_MIDDLE, SPI_CLOCK_IDLE_HIGH, SPI_IDLE_2_ACTIVE);
-    //usart_setup();
-    while(1){
-        
-        if ((PORTDbits.RD4 == 1)&&(spiDataReady())){
-            PORTB--;
-            RD7 = 0;
-            __delay_ms(1);
-            spiWrite(0);
-            PORTB = spiRead();
-            __delay_ms(1);
-            RD7 = 1;
-            __delay_ms(100);   
-        }
-        
-        
-        /*
-        UART_Write(ADCval1);
-        //UART_Write(ADCval2);
-        if (UART_Data_Ready()){
+  while(1){
+      if (UART_Data_Ready()){
             recived = UART_Read(); 
             RCSTAbits.CREN = 1; 
         }
@@ -69,16 +49,41 @@ void main(void) {
             asm("nop");
         }
         PORTB = recived;
-        c1++;
-        if (c1 == 255){
-            ADCval1++;
-            ADCval2--;
-            c1 = 0;
-            
+        
+        if (recived == 0b10000000){
+            selectp1 = 0;
+        }
+        else if (recived == 0b01111111){
+            selectp1 = 1;
         }
         else{
-            asm("nop");
-        }*/
-    }
-    return;
+            ;
+        }
+        switch (selectp1){
+            case 0:
+                UART_Write(mvar1);
+                break;
+            case 1:
+                UART_Write(mvar2);
+                break;
+        }
+        //UART_Write(mvar2);
+        spiWrite(0);
+        mvar1 = spiRead();
+        __delay_ms(10);
+    
+        spiWrite(1);
+        mvar2 = spiRead();
+        __delay_ms(10);
+    /*
+    select = PORTA;
+    switch (select){
+        case 0:
+            PORTB = mvar2;
+            break;
+        case 1:
+            PORTB = mvar1;
+            break;
+    }*/
+  }
 }
